@@ -6,7 +6,7 @@ SERVER_SRC = $(addprefix $(SERVER_DIR)/, $(addsuffix .cpp, \
 # $(addprefix Network/, ServClient ) \
 	
 SERVER_OBJ = $(SERVER_SRC:.cpp=.o)
-SERVER_INCS = -I$(SERVER_DIR)
+SERVER_INCS = -I$(SERVER_DIR) -IUtilities
 SERVER_ENTRY_POINT = $(SERVER_DIR)/main.cpp
 
 CC = c++

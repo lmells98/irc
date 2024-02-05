@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:53:42 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/04 17:46:24 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/05 11:46:37 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,10 +32,10 @@ static inline int	errorExit(int error_code, const std::string &message)
 
 int	main(int ac, char **av)
 {
-	if (ac != 3) return (errorExit(IRC::ERROR_USAGE, usage(av[SERVER_NAME])));
+	if (ac != 3) return (errorExit(ERR_USAGE, usage(av[SERVER_NAME])));
 	try {
 		IRC::Server(&av[SERVER_NAME][TRIM_DOT_SLASH], av[SERVER_PORT], av[SERVER_PASSWORD]).start();
 	}
-	catch (const std::exception& e) { return (errorExit(IRC::ERROR_CODE, e.what())); }
+	catch (const std::exception& e) { return (errorExit(IRC::ExitCode, e.what())); }
 	return (0);
 }
