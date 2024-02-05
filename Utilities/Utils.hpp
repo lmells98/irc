@@ -6,13 +6,14 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 16:00:31 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/05 12:04:20 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/05 14:25:40 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef UTILS_HPP
 # define UTILS_HPP
 
+# include <errno.h>
 # include <string.h>
 # include <stdio.h>
 
@@ -69,7 +70,6 @@ namespace IRC
 
 	};
 
-
 	inline static std::runtime_error	RuntimeError(int exitCode, const std::string &message, bool printErrnoMessage = false)
 	{
 		IRC::ExitCode = exitCode;
@@ -77,20 +77,29 @@ namespace IRC
 
 		if (printErrnoMessage)
 		{
-			char *errnoMessage = NULL;
-			switch (errno != 0)
+			char	*errnoMessage = NULL;
+			int		saveErrno = errno;
+
+			switch (saveErrno != 0)
 			{
 				case 1:
-					sprintf(errnoMessage, "(%d) %s", errno, strerror(errno));
-					outputBuffer.append(errnoMessage);
+					asprintf(&errnoMessage, "(%d) %s", saveErrno, strerror(saveErrno));
+					outputBuffer += errnoMessage;
 					break;
 			
 				default:
-					outputBuffer.append("Cannot print errno message because errno value was not set!");
+					outputBuffer += "Cannot print errno message because errno value was not set!";
 					break;
 			}
 		}
 		return (std::runtime_error(outputBuffer));
+	}
+
+	
+	inline static int	ErrorExit(int error_code, const std::string &message)
+	{
+		std::cerr << message << std::endl;
+		return (error_code);
 	}
 }
 

@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:53:42 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/05 11:46:37 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/05 13:26:15 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,12 +18,6 @@ static inline std::string	usage(const std::string &programName)
 						"Usage: " + programName + " [port number] [password]"));
 }
 
-static inline int	errorExit(int error_code, const std::string &message)
-{
-	std::cerr << message << std::endl;
-	return (error_code);
-}
-
 #define SERVER_NAME 0
 #define TRIM_DOT_SLASH 2
 
@@ -32,10 +26,10 @@ static inline int	errorExit(int error_code, const std::string &message)
 
 int	main(int ac, char **av)
 {
-	if (ac != 3) return (errorExit(ERR_USAGE, usage(av[SERVER_NAME])));
+	if (ac != 3) return (IRC::ErrorExit(ERR_USAGE, usage(av[SERVER_NAME])));
 	try {
 		IRC::Server(&av[SERVER_NAME][TRIM_DOT_SLASH], av[SERVER_PORT], av[SERVER_PASSWORD]).start();
 	}
-	catch (const std::exception& e) { return (errorExit(IRC::ExitCode, e.what())); }
+	catch (const std::exception& e) { return (IRC::ErrorExit(IRC::ExitCode, e.what())); }
 	return (0);
 }

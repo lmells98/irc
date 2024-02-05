@@ -6,14 +6,18 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:47:54 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/05 12:02:37 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/05 14:14:29 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef SERVER_HPP
 # define SERVER_HPP
 
-# include <errno.h>
+// # include <errno.h>
+# include <fcntl.h>
+# include <stdlib.h>
+
+# include <arpa/inet.h>
 # include <sys/socket.h>
 
 # include <exception>
@@ -27,8 +31,8 @@
 # define PRINT_SUCCESS "\e[1;92mSuccess!\e[0m"
 
 # define NONE 0
-# define ERR_USAGE 2
-# define ERR_SOCK_OPEN 2
+# define ERR_USAGE 1
+# define ERR_SOCK_CREATE 2
 
 namespace IRC
 {
@@ -48,7 +52,7 @@ namespace IRC
 			Server(void): c_name(0), c_logConf(LogConfig::initialise()), c_portStr(0), c_password(0), c_host(0) {}
 			Server(const Server &server): c_name(server.c_name), c_logConf(server.c_logConf), c_portStr(server.c_portStr), c_password(server.c_password), c_host(server.c_host) {}
 
-			int							openSocketConnection(void);
+			int							createSocketConnection(void);
 
 		public:
 			Server(const std::string &name, const std::string &portStr, const std::string &password);
