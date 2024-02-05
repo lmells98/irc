@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:49:38 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/05 14:29:24 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/05 15:52:30 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,9 @@ IRC::Server::Server(const std::string &name, const std::string &portStr, const s
 	log(c_logConf.fillLine());
 	log("");
 	log(centerStringInTextField(c_logConf.getLineLength(), "{ FT_IRC SERVER }", ' '));
+	log(combineStringWithDividerCenterTextField(c_logConf.getLineLength(), "Host Address", c_host, ":"));
+	log(combineStringWithDividerCenterTextField(c_logConf.getLineLength(), "Port Number", c_portStr, ":"));
+	log(combineStringWithDividerCenterTextField(c_logConf.getLineLength(), "Password", c_password, ":"));
 	log("");
 	log(c_logConf.fillLine());
 	log(centerStringInTextField(c_logConf.getActionFieldWidth(), "Performing Action", ' '), true);
@@ -79,14 +82,14 @@ int	IRC::Server::createSocketConnection(void)
 		throw runtimeError(ERR_SOCK_CREATE, "Couldn't set socket options because : ", true);
 	log(PRINT_SUCCESS);
 
-	// This will block the poll until an incoming request has been recieved, then we will process the request.
+	// Proccess wont wait for read() & write() calls to finish executing before continuing.
 	log("Setting socket to \"non-blocking\" mode...", true);
 	if (fcntl(servSocket_fd, F_SETFL, O_NONBLOCK) < 0)
 		throw runtimeError(ERR_SOCK_CREATE, "Couldn't set socket to \"non-blocking\" mode because : ", true);
 	log(PRINT_SUCCESS);
 
 	// Bind the socket's file descriptor to the socket address for I/O communications over the connection.
-	log("Binding socket to IP address on port " + c_portStr + "...", true);
+	log("Binding IP address to socket...", true);
 	struct sockaddr_in	serverSocketAddress = {
 		.sin_family = AF_INET,	// AF_INET - (Address Family) Internet IPv4 Addresses.
 		.sin_port 	= htons(atoi(c_portStr.c_str())),	// Convert from host machine endian to network protocol endian.
@@ -102,5 +105,36 @@ int	IRC::Server::createSocketConnection(void)
 
 void	IRC::Server::start(void)
 {
-	log("Starting Server...");
+	pollfd	server = {
+		.fd = m_socket,		// I/O actions will take place on file descriptor that refers to the server's socket.
+		.events = POLLIN,	// Poll will only return if POLLIN request is recieved.
+		.revents = 0
+	};
+	m_connectedSockets.push_back(server);
+
+	log("Starting Server...", true);
+	if (listen(m_socket, MAX_CONNECTIONS) < 0)
+		throw runtimeError(ERR_SOCK_LISTEN, "Can't listen for incoming connections because : ", true);
+	log(PRINT_SUCCESS);
+
+	log(c_logConf.fillLine('~'));
+	log("Server is now listening @" + c_host + ":" + c_portStr);
+	log(c_logConf.fillLine('~'));
+
+	size_t	i = 0;
+	while (++i != 3 && m_running)
+	{
+		log("Waiting for incoming request(s)...", true);
+		// Set timeout to -1 to stop the poll until an incoming request has been received.
+		if (i == 2 && poll(m_connectedSockets.begin().base(), m_connectedSockets.size(), -1) < 0)
+			throw runtimeError(ERR_SOCK_POLL, "Couldn't poll for connection requests because : ", true);
+		log(PRINT_REQUEST_RECEIVED);
+
+		for (std::vector<pollfd>::iterator request = m_connectedSockets.begin(); request != m_connectedSockets.end(); request++)
+		{
+			log("Connecting client...", true);
+			log(PRINT_SUCCESS);
+		}
+		m_running = false;
+	}
 }

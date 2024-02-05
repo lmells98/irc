@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 16:00:31 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/05 14:25:40 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/05 15:45:09 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,23 @@ static std::string	centerStringInTextField(size_t fieldWidth, const std::string 
 	size_t	paddingLeft = difference / 2;
 	size_t	paddingRight = difference - paddingLeft;
 	return (std::string(paddingLeft, padWithChar) + str + std::string(paddingRight, padWithChar));
+}
+
+inline static std::string	combineStringWithDividerCenterTextField(size_t fieldWidth, const std::string &leftStr, const std::string &rightStr, const std::string &divider)
+{
+	const size_t	leftStrSize = leftStr.size();
+	const size_t	rightStrSize = rightStr.size();
+
+	std::string	 tmp = centerStringInTextField(fieldWidth, divider, ' ');
+	size_t i = tmp.find(':') - 1 - leftStrSize;
+	for (size_t start = 0; start < leftStrSize; start++)
+		tmp[i++] = leftStr[start];
+
+	i = tmp.find(':') + 2;
+	for (size_t start = 0; start < rightStrSize && i != tmp.npos; start++)
+		tmp[i++] = rightStr[start];
+
+	return (tmp);
 }
 
 namespace IRC
@@ -61,7 +78,7 @@ namespace IRC
 			{
 				if (padWithChar == PAD_WITH_CHAR)
 					return (c_fillLine);
-				return (std::string(ACTION + RESULT, padWithChar));
+				return (std::string(ACTION + DIVIDER + RESULT, padWithChar));
 			};
 
 			inline size_t		getLineLength(void) const { return (ACTION + DIVIDER + RESULT); }
