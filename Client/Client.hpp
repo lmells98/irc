@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/05 18:30:00 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/06 13:03:36 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/06 20:33:19 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 # include <arpa/inet.h>
 
 # include <exception>
+# include <map>
 # include <iomanip>
 # include <iostream>
 
@@ -35,39 +36,55 @@ struct s_ErrorCodes
 		~s_ErrorCodes(void) {}
 };
 
+typedef struct s_ClientStates
+{
+	public:
+		typedef enum e_ClientStates {
+			NONE = -1,
+			DISCONNECTED,
+			CONNECTED,
+			COUNT_STATES
+		}	ActiveState;
+	
+		s_ClientStates() {}
+		~s_ClientStates() {}
+}	CLI;
+
 namespace IRC
 {
 	class Client : public Network::IClientConnection
 	{
 		private:
 		//	---- Abstracted from Network::IClientConnection --------------------
-			int					m_Socket_fd;
-			int					m_Port;
-			std::string			m_Hostname;
+			int						m_Socket_fd;
+			int						m_Port;
+			std::string				m_Hostname;
 		//	--------------------------------------------------------------------
-			const LogConfig		c_logConfig;
-			const std::string	c_Username;
+			const LogConfig			c_logConfig;
+			const std::string		c_Username;
 
-			bool				m_Running = false;
+			bool					m_Running;
+
+			CLI::ActiveState		m_State;
 
 			Client(void);
 
 		public:
-			static struct s_ErrorCodes	ErrorCodes;	// Gives global access to error codes without creating the parent object.
+			static struct s_ErrorCodes		ErrorCodes;	// Gives global access to error codes without creating the parent object.
+			// static struct s_ClientStates	CLI_States;
 
 			Client(const std::string &name, const std::string &username);
 			~Client(void);
 
 		//	---- Abstracted from Network::IClientConnection --------------------
-			inline int			getSocket(void) const { return m_Socket_fd; }
-			inline int			getPort(void) const { return m_Port; }
-			inline std::string	getHostname(void) const { return m_Hostname; }
+			inline int					getSocket(void) const { return m_Socket_fd; }
+			inline int					getPort(void) const { return m_Port; }
+			inline std::string			getHostname(void) const { return m_Hostname; }
 		//	--------------------------------------------------------------------
-
-			void						log(const std::string &message);
+			void						log(const std::string &message, bool nextOutputOnSameLine = false);
 			inline std::runtime_error	runtimeError(int exitCode, const std::string &message, bool printErrnoMessage = false);
 
-			void				run(void);
+			void						run(void);
 
 			
 	};
