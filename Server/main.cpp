@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:53:42 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/05 13:26:15 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/06 12:31:01 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,8 +14,8 @@
 
 static inline std::string	usage(const std::string &programName)
 {
-	return (std::string("Startup Error! Incorrect number of arguments.\n"
-						"Usage: " + programName + " [port number] [password]"));
+	return ("Startup Error! Incorrect number of arguments.\n"
+			"Usage: " + programName + " [port number] [password]");
 }
 
 #define SERVER_NAME 0
