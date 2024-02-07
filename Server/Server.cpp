@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:49:38 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/06 10:22:44 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/07 13:50:35 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,47 +20,74 @@ void	IRC::Server::log(const std::string &message, bool nextOutputOnSameLine = fa
 	originalOutputFormat.copyfmt(std::cout);
 
 	if (nextOutputOnSameLine && !cursorOnSameLine)
-		std::cout << c_logConf.getPrefix() << ": " << std::setw(c_logConf.getActionFieldWidth()) << std::left << message << "\e[s";
+		std::cout << c_LogConfig.getPrefix() << ": " << std::setw(c_LogConfig.getActionFieldWidth()) << std::left << message << "\e[s";
 
 	else if (cursorOnSameLine && !nextOutputOnSameLine)
-		std::cout << "| " << std::setw(c_logConf.getResultFieldWidth()) << std::left << message << std::endl;
+		std::cout << "| " << std::setw(c_LogConfig.getResultFieldWidth()) << std::left << message << std::endl;
 
 	else
-		std::cout << c_logConf.getPrefix() << ": " << std::left << std::setw(c_logConf.getLineLength()) << message << std::endl;
+		std::cout << c_LogConfig.getPrefix() << ": " << std::left << std::setw(c_LogConfig.getLineLength()) << message << std::endl;
 
 	std::cout.flush();
 	cursorOnSameLine = nextOutputOnSameLine;
 	std::cout.copyfmt(originalOutputFormat);
 }
 
-IRC::Server::Server(const std::string &name, const std::string &portStr, const std::string &password) :	c_name(name),
-																										c_logConf(IRC::LogConfig::initialise(name)),
-																										c_portStr(portStr),
-																										c_password(password),
-																										c_host("127.0.0.1")
+IRC::Server::Server(const std::string &name, const std::string &portStr, const std::string &password) :	c_Name(name),
+																										c_LogConfig(IRC::LogConfig::initialise(name)),
+																										c_PortStr(portStr),
+																										c_Password(password),
+																										c_Host("127.0.0.1")
 {
-	log(c_logConf.fillLine());
+	log(c_LogConfig.fillLine());
 	log("");
-	log(centerStringInTextField(c_logConf.getLineLength(), "{ FT_IRC SERVER }", ' '));
-	log(combineStringWithDividerCenterTextField(c_logConf.getLineLength(), "Host Address", c_host, ":"));
-	log(combineStringWithDividerCenterTextField(c_logConf.getLineLength(), "Port Number", c_portStr, ":"));
-	log(combineStringWithDividerCenterTextField(c_logConf.getLineLength(), "Password", c_password, ":"));
+	log(centerStringInTextField(c_LogConfig.getLineLength(), "{ FT_IRC SERVER }", ' '));
+	log(combineStringWithDividerCenterTextField(c_LogConfig.getLineLength(), "Host Address", c_Host, ":"));
+	log(combineStringWithDividerCenterTextField(c_LogConfig.getLineLength(), "Port Number", c_PortStr, ":"));
+	log(combineStringWithDividerCenterTextField(c_LogConfig.getLineLength(), "Password", c_Password, ":"));
 	log("");
-	log(c_logConf.fillLine());
-	log(centerStringInTextField(c_logConf.getActionFieldWidth(), "Performing Action", ' '), true);
-	log(centerStringInTextField(c_logConf.getResultFieldWidth(), "Result", ' '));
-	log(c_logConf.fillLine());
+	log(c_LogConfig.fillLine());
+	log(centerStringInTextField(c_LogConfig.getActionFieldWidth(), "Performing Action", ' '), true);
+	log(centerStringInTextField(c_LogConfig.getResultFieldWidth(), "Result", ' '));
+	log(c_LogConfig.fillLine());
 
-	m_running = true;
-	m_socket_fd = createSocketConnection();
+	m_Running = true;
+	m_Socket_fd = createSocketConnection();
 }
 
 IRC::Server::~Server(void)
 {
-	for (std::map<int, Network::ClientConnection *>::iterator it = m_clientConnections.begin(); it != m_clientConnections.end(); it++)
+	// !! TESTING PURPOSES ONLY !!
+	// ~~ This is not a valid solution...
+	// ~~ I was just getting a crash on exit without doing this...
+	try
 	{
-		delete (it->second);
-		m_clientConnections.erase(it);
+		const size_t		countClients = m_Clients.size();
+		std::ostringstream	ss;
+
+		ss << "Clients Connected: " << countClients;
+		log(ss.str());
+		ss.clear();
+
+		for (size_t i = 0; i < countClients; i++)
+		{
+			int							client_fd = m_PollSockets[i + 1].fd;
+			Network::ClientConnection	*connection = m_Clients.at(client_fd);
+
+			log(c_LogConfig.fillLine('~'));
+			char	output[c_LogConfig.getLineLength()] = {0};
+			sprintf(output, "Client connected from %s:%d (refer to socket_fd[%i])", connection->getHostname().c_str(), connection->getPort(), connection->getSocket());
+			log(output);
+			log(c_LogConfig.fillLine('~'));
+
+			// m_Clients.erase(client_fd);
+			delete connection;
+		}
+	}
+	catch(const std::exception& e)
+	{
+		log(c_LogConfig.fillLine('~'));
+		throw runtimeError(ERR_DELETE_CONNECTION, e.what(), true);
 	}
 }
 
@@ -98,7 +125,7 @@ int	IRC::Server::createSocketConnection(void)
 	log("Binding IP address to socket...", true);
 	sockaddr_in	serverSocketAddress = {
 		.sin_family = AF_INET,	// AF_INET - (Address Family) Internet IPv4 Addresses.
-		.sin_port 	= htons(atoi(c_portStr.c_str())),	// Convert from host machine endian to network protocol endian.
+		.sin_port 	= htons(atoi(c_PortStr.c_str())),	// Convert from host machine endian to network protocol endian.
 		.sin_addr 	= (in_addr){.s_addr = INADDR_ANY},	// Accept any incoming connections to this address.
 		.sin_zero 	= {0}
 	};
@@ -112,29 +139,29 @@ int	IRC::Server::createSocketConnection(void)
 void	IRC::Server::start(void)
 {
 	pollfd	server = {
-		.fd = m_socket_fd,		// Perform I/O actions on file descriptor that refers to the server's socket.
-		.events = POLLIN,	// Only care about reading data from incoming connections.
-		.revents = 0
+		.fd			= m_Socket_fd,		// Perform I/O actions on file descriptor that refers to the server's socket.
+		.events		= POLLIN,	// Only care about reading data from incoming connections.
+		.revents	= 0
 	};
-	m_connectedSockets.push_back(server);
+	m_PollSockets.push_back(server);
 
 	log("Starting Server...", true);
-	if (listen(m_socket_fd, MAX_CONNECTIONS) < 0)
+	if (listen(m_Socket_fd, MAX_CONNECTIONS) < 0)
 		throw runtimeError(ERR_SOCK_LISTEN, "Can't listen for incoming connections because : ", true);
 	log(PRINT_SUCCESS);
 
-	log(c_logConf.fillLine('~'));
-	log("Server is now listening @" + c_host + ":" + c_portStr);
-	log(c_logConf.fillLine('~'));
+	log(c_LogConfig.fillLine('~'));
+	log("Server is now listening @" + c_Host + ":" + c_PortStr);
+	log(c_LogConfig.fillLine('~'));
 
-	// size_t	i = 0;
-	// while (++i != 3 && m_running)
-	while (m_running)
+	size_t	i = 0;
+	while (++i != 3 && m_Running)
+	// while (m_Running)
 	{
 		log("Waiting for incoming request...", true);
 		// Set timeout to -1 to stop the poll until an incoming request has been received.
-		// if (i == 2 && poll(m_connectedSockets.begin().base(), m_connectedSockets.size(), -1) < 0)
-		if (poll(m_connectedSockets.begin().base(), m_connectedSockets.size(), -1) < 0)
+		// if (i == 2 && poll(m_PollSockets.begin().base(), m_PollSockets.size(), -1) < 0)
+		if (poll(m_PollSockets.begin().base(), m_PollSockets.size(), -1) < 0)
 			throw runtimeError(ERR_SOCK_POLL, "Couldn't poll for connection requests because : ", true);
 		log(PRINT_SUCCESS);
 		processIncomingRequests();
@@ -143,22 +170,32 @@ void	IRC::Server::start(void)
 
 void	IRC::Server::processIncomingRequests(void)
 {
-	log("Processing request...", true);
-	for (std::vector<pollfd>::iterator request = m_connectedSockets.begin(); request != m_connectedSockets.end(); request++)
+	int	i = 0;
+
+	for (std::vector<pollfd>::iterator request = m_PollSockets.begin(); request != m_PollSockets.end(); request++)
 	{
+		std::ostringstream	ss;
+		ss << "[" << ++i << "] Processing request from fd " << request->fd << " ...";
+		log(ss.str(), true);
+
 		// No request from this socket.
-		if (!request->revents) continue ;
+		if (!request->revents)
+		{
+			log("None!");
+			continue ;
+		}
+			
 		// Incoming request is a client connection.
-		if ((request->revents & POLLIN) == POLLIN && request->fd == m_socket_fd)
+		if ((request->revents & POLLIN) == POLLIN && request->fd == m_Socket_fd)
 		{
 			log(PRINT_SUCCESS);
 			return (connectClient());
 		}
 		// Unknown requests type.
 		log(PRINT_FAILED);
-		log(c_logConf.fillLine('~'));
+		log(c_LogConfig.fillLine('~'));
 		log(PRINT_WARNING" Event type handler not yet implemented");
-		log(c_logConf.fillLine('~'));
+		log(c_LogConfig.fillLine('~'));
 		return ;
 	}
 	throw runtimeError(ERR_SOCK_POLL, "Something went wrong when polling for incoming connections. No actual request events occurred.");
@@ -175,7 +212,7 @@ void	IRC::Server::connectClient(void)
 		.sin_zero	= {0}
 	};
 	socklen_t	addressBufferSize = sizeof(clientSocketAddress);
-	int			clientSocket_fd = accept(m_socket_fd, (sockaddr *)&clientSocketAddress, &addressBufferSize);
+	int			clientSocket_fd = accept(m_Socket_fd, (sockaddr *)&clientSocketAddress, &addressBufferSize);
 	if (clientSocket_fd < 0)
 		throw runtimeError(ERR_CLIENT_CONNECT, "Failed to accept client connection because : ", true);
 	log(PRINT_SUCCESS);
@@ -185,7 +222,7 @@ void	IRC::Server::connectClient(void)
 		.events		= POLLIN,
 		.revents	= 0
 	};
-	m_connectedSockets.push_back(clientConnection);
+	m_PollSockets.push_back(clientConnection);
 
 	log("Collecting information from client...", true);
 	char	clientHostname[NI_MAXHOST] = {0};
@@ -193,14 +230,13 @@ void	IRC::Server::connectClient(void)
 		throw runtimeError(ERR_CLIENT_CONNECT, "Failed to collect information from client because : ", true);
 	log(PRINT_SUCCESS);
 
-	Network::ClientConnection	*clientInfo = new Network::ClientConnection(clientSocket_fd, ntohs(clientSocketAddress.sin_port), clientHostname);
-	m_clientConnections.insert(std::make_pair(clientSocket_fd, clientInfo));
+	Network::ClientConnection	*connection = new Network::ClientConnection(clientSocket_fd, ntohs(clientSocketAddress.sin_port), clientHostname);
+	m_Clients.insert(std::make_pair(clientSocket_fd, connection));
 
-	log(c_logConf.fillLine('~'));
-	char	clientInfoMessage[c_logConf.getLineLength()] = {0};
-	sprintf(clientInfoMessage, "Client connected from @%s:%d", clientInfo->getHostname().c_str(), clientInfo->getPort());
-	log(clientInfoMessage);
-	log(c_logConf.fillLine('~'));
-
+	log(c_LogConfig.fillLine('~'));
+	char	output[c_LogConfig.getLineLength()] = {0};
+	sprintf(output, "Client connected from %s:%d (refer to socket_fd[%i])", connection->getHostname().c_str(), connection->getPort(), connection->getSocket());
+	log(output);
+	log(c_LogConfig.fillLine('~'));
 
 }

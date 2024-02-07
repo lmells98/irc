@@ -34,7 +34,8 @@ FLAGS = -g -std=c++98 -Wall -Werror -Wextra
 # 			Compile Executables
 # ============================================================================ /
 all: $(SERVER_EXE_NAME) $(CLIENT_EXE_NAME)
-
+server: $(SERVER_EXE_NAME)
+client: $(CLIENT_EXE_NAME)
 # 	~~ Server ~~
 $(SERVER_EXE_NAME): $(NETWORK_OBJ) $(SERVER_OBJ)
 	$(CC) $(FLAGS) $(SERVER_INCS) $(NETWORK_OBJ) $(SERVER_OBJ) $(SERVER_ENTRY_POINT) -o $@

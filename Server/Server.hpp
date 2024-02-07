@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:47:54 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/06 11:21:04 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/07 13:40:48 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,12 +21,14 @@
 # include <poll.h>
 # include <sys/socket.h>
 # include <netdb.h>
+# include <unistd.h>
 
 # include <exception>
 # include <iostream>
 # include <iomanip>
 # include <map>
 # include <string>
+# include <sstream>
 # include <vector>
 
 # include <Utils.hpp>
@@ -42,29 +44,30 @@
 # define ERR_SOCK_LISTEN 3
 # define ERR_SOCK_POLL 4
 # define ERR_CLIENT_CONNECT 5
+# define ERR_DELETE_CONNECTION 6
 
 namespace IRC
 {
 	class Server
 	{
 		private:
-			const std::string							c_name;
-			const LogConfig								c_logConf;
+			const std::string							c_Name;
+			const LogConfig								c_LogConfig;
 			
-			const std::string							c_portStr;
-			const std::string							c_password;
-			const std::string							c_host;
+			const std::string							c_PortStr;
+			const std::string							c_Password;
+			const std::string							c_Host;
 			
-			bool										m_running;
-			int											m_socket_fd;
+			bool										m_Running;
+			int											m_Socket_fd;
 
 			# define MAX_CONNECTIONS 30
-			std::vector<pollfd>							m_connectedSockets;
+			std::vector<pollfd>							m_PollSockets;
 
-			std::map<int, Network::ClientConnection *>	m_clientConnections;
+			std::map<int, Network::ClientConnection *>	m_Clients;
 
-			Server(void): c_name(0), c_logConf(LogConfig::initialise()), c_portStr(0), c_password(0), c_host(0) {}
-			Server(const Server &server): c_name(server.c_name), c_logConf(server.c_logConf), c_portStr(server.c_portStr), c_password(server.c_password), c_host(server.c_host) {}
+			Server(void): c_Name(0), c_LogConfig(LogConfig::initialise()), c_PortStr(0), c_Password(0), c_Host(0) {}
+			Server(const Server &server): c_Name(server.c_Name), c_LogConfig(server.c_LogConfig), c_PortStr(server.c_PortStr), c_Password(server.c_Password), c_Host(server.c_Host) {}
 
 			int							createSocketConnection(void);
 
@@ -82,7 +85,7 @@ namespace IRC
 			{
 				IRC::ExitCode = exitCode;
 				log(PRINT_FAILED, false);
-				log(c_logConf.fillLine(), false);
+				log(c_LogConfig.fillLine(), false);
 				return (std::runtime_error(IRC::BufferErrorMessage(message, printErrnoMessage)));
 			}
 	};
