@@ -6,7 +6,7 @@
 /*   By: lmells <lmells@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/04 15:49:38 by lmells            #+#    #+#             */
-/*   Updated: 2024/02/07 13:50:35 by lmells           ###   ########.fr       */
+/*   Updated: 2024/02/09 19:05:48 by lmells           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,10 +53,15 @@ IRC::Server::Server(const std::string &name, const std::string &portStr, const s
 
 	m_Running = true;
 	m_Socket_fd = createSocketConnection();
+	m_CommandCentre = new CommandCentre(this);
 }
 
 IRC::Server::~Server(void)
 {
+	log("Destroying command centre...", true);
+	delete m_CommandCentre;
+	log(PRINT_SUCCESS);
+
 	// !! TESTING PURPOSES ONLY !!
 	// ~~ This is not a valid solution...
 	// ~~ I was just getting a crash on exit without doing this...
@@ -80,7 +85,6 @@ IRC::Server::~Server(void)
 			log(output);
 			log(c_LogConfig.fillLine('~'));
 
-			// m_Clients.erase(client_fd);
 			delete connection;
 		}
 	}
@@ -139,7 +143,7 @@ int	IRC::Server::createSocketConnection(void)
 void	IRC::Server::start(void)
 {
 	pollfd	server = {
-		.fd			= m_Socket_fd,		// Perform I/O actions on file descriptor that refers to the server's socket.
+		.fd			= m_Socket_fd,	// Perform I/O actions on file descriptor that refers to the server's socket.
 		.events		= POLLIN,	// Only care about reading data from incoming connections.
 		.revents	= 0
 	};
@@ -185,13 +189,18 @@ void	IRC::Server::processIncomingRequests(void)
 			continue ;
 		}
 			
-		// Incoming request is a client connection.
-		if ((request->revents & POLLIN) == POLLIN && request->fd == m_Socket_fd)
+		// Handle incoming socket request that's occurred.
+		if ((request->revents & POLLIN) == POLLIN)
 		{
 			log(PRINT_SUCCESS);
-			return (connectClient());
+			// Request came from server socket - Incoming client connection.
+			if (request->fd == m_Socket_fd)
+				return (connectClient());
+			// Request came from a client - Parse and handle the client message.
+			return (messageFromClient(request->fd));
 		}
-		// Unknown requests type.
+
+		// Unknown Event...
 		log(PRINT_FAILED);
 		log(c_LogConfig.fillLine('~'));
 		log(PRINT_WARNING" Event type handler not yet implemented");
@@ -239,4 +248,81 @@ void	IRC::Server::connectClient(void)
 	log(output);
 	log(c_LogConfig.fillLine('~'));
 
+}
+
+void	IRC::Server::messageFromClient(const int clientSocket_fd)
+{
+	try
+	{
+		Network::ClientConnection	*client = m_Clients.at(clientSocket_fd);
+
+		log(c_LogConfig.fillLine('~'));
+		log("Client @ " + client->getHostname() + " sent a message to server");
+		log(c_LogConfig.fillLine('~'));
+
+		std::string		message = readMessageFromClient(clientSocket_fd);
+		log(c_LogConfig.fillLine('~'));
+		log("Message received: \"" + message + "\"");
+		log(c_LogConfig.fillLine('~'));
+
+		m_CommandCentre->parse(client, message);
+	}
+	catch (const std::exception& e) { throw runtimeError(ERR_READ_CLIENT_SOCKET, e.what(), true); }
+}
+
+# define MAX_RECEIVE_BYTES 64
+// Very basic packet of data...
+//	~~ The project PDF mentions a program called "nc". This allows us to connect to the server
+//  ~~ and send EOF signals before a new line.
+// 	~~ This basic solution will probably be prone to packet loss from poor or interrupted connections.
+inline const std::string	IRC::Server::readMessageFromClient(const int clientSocket_fd)
+{
+	log("Building message...", true);
+
+	std::string	message = "";
+
+	// Build client message to server.
+	char	receiveBuff[MAX_RECEIVE_BYTES] = {0};
+	while (!strstr(receiveBuff, "\n"))
+	{
+		bzero(receiveBuff, MAX_RECEIVE_BYTES);
+		// errno != EWOULDBLOCK - who knows what can happen at runtime... Even though we are in 'non-blocking' mode on the server.
+		if ((recv(clientSocket_fd, receiveBuff, MAX_RECEIVE_BYTES, 0) < 0) && errno != EWOULDBLOCK)
+			throw std::runtime_error("Failed to read data from client socket because : ");
+
+		message.append(receiveBuff);
+	}
+	
+	log(PRINT_SUCCESS);
+
+	return (message);
+}
+
+# define MATCH_FOUND 0
+// Compares nicknames with existing client connections. Returns a pointer to the object with match.
+IRC::Network::ClientConnection *IRC::Server::getClient(const std::string &userNickname)
+{
+	std::map<int, Network::ClientConnection *>::iterator	start;
+	std::map<int, Network::ClientConnection *>::iterator	end = m_Clients.end();
+
+	for (start = m_Clients.begin(); start != end; start++)
+		if (userNickname.compare(start->second->getNickname()) == MATCH_FOUND) return start->second;
+	return (NULL);
+}
+
+void	IRC::Server::welcome(IRC::Network::ClientConnection *client)
+{
+	// Upon initial connection from client, Irssi will send 2 commands.
+	// First "NICK", then "USER". So return back to loop to process the 2nd command to create a new user for the client.
+	// Then we will display the welcome message.
+	if (client->m_State != IRC::Network::ClientStates::LOGIN || client->getNickname().empty()) return ;
+
+	// Set client state and send welcome reply to client.
+	client->m_State = IRC::Network::ClientStates::REGISTERED;
+	client->sendReplyToClient(IRC::Server::WELCOME(client->getNickname()));
+
+	// Log output to server.
+	char	output[c_LogConfig.getLineLength()];
+	sprintf(output, "%s:%d goes by the name... %s", client->getHostname().c_str(), client->getPort(), client->getNickname().c_str());
+	log(output);
 }
